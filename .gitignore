@@ -1,0 +1,9 @@
+*.json
+*.class
+*.iml
+*.MF
+*.xml
+*.iml
+/.settings/
+/.idea
+/out/
