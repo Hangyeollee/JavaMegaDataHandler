@@ -75,7 +75,6 @@ public class MariaDAO {
         String sql = info.getQuery().replace("%s",start);
         String targetTable = info.getTargetTable();
 
-
         String executeOption = info.getExecuteOption();
         try {
             con = getConnection();
@@ -102,7 +101,7 @@ public class MariaDAO {
                 }
                 executeBatch(stmt);
                 con.commit();
-            } else {
+            } else if(info.getType().equals("updateALL")){
                 while (rs.next()) {
                     StringJoiner updateData = new StringJoiner("','", "'", "'");
                     for (int i=0; i < arrayLength; i++) {
@@ -120,6 +119,36 @@ public class MariaDAO {
                         else sb.append("\n");
                     }
                     sb.append(String.format("WHERE %s = %s\n",targetColumn[0],updateArray[0]));
+                    if(executeOption.equals("real")){
+                        stmt.addBatch(sb.toString().replace("'null'","null"));
+                        count++;
+                        if(count % batchSize == 0){
+                            executeBatch(stmt);
+                            con.commit();
+                        }
+                    }else if(executeOption.equals("test")) System.out.println(sb.toString().replace("'null'","null"));
+
+                }
+                executeBatch(stmt);
+                con.commit();
+            } else if (info.getType().equals("update")){
+                while (rs.next()) {
+                    StringJoiner updateData = new StringJoiner("','", "'", "'");
+                    for (int i=0; i < arrayLength; i++) {
+                        String data = rs.getString(array[i]);
+                        if(data != null && data.contains("'")) data = data.replace("'","\\'");
+                        updateData.add(data);
+                    }
+                    String [] updateArray = updateData.toString().split(",");
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(String.format("UPDATE %s\nSET\n",targetTable));
+
+                    for(int i =1; i < targetColumnLength; i++){
+                        sb.append(String.format("%s = %s",targetColumn[i],updateArray[i]));
+                        if(i != arrayMaxIndex) sb.append(",\n");
+                        else sb.append("\n");
+                    }
+                    sb.append(String.format("WHERE %s = %s AND PMT_REQ_DT BETWEEN CAST('%s' AS DATETIME(6)) AND (CAST('%s' AS DATETIME(6)) + INTERVAL 60*60*24*1000000-1 MICROSECOND)\n",targetColumn[0],updateArray[0],start,start));
                     if(executeOption.equals("real")){
                         stmt.addBatch(sb.toString().replace("'null'","null"));
                         count++;
